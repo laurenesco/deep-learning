@@ -10,7 +10,7 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
 
 class ClassificationLoss(nn.Module):
     def forward(self, logits: torch.Tensor, target: torch.LongTensor) -> torch.Tensor:
@@ -25,6 +25,8 @@ class ClassificationLoss(nn.Module):
         Returns:
             tensor, scalar loss
         """
+        return F.cross_entropy(logits, target)
+        
         raise NotImplementedError("ClassificationLoss.forward() is not implemented")
 
 
