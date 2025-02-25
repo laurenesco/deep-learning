@@ -45,7 +45,12 @@ class LinearClassifier(nn.Module):
         """
         super().__init__()
 
-        raise NotImplementedError("LinearClassifier.__init__() is not implemented")
+        # Flatten the input image from (B, 3, h, w) to (B, 3*h*w)
+        self.flatten = nn.Flatten()
+        # Linear layer that maps the flattened image to num_classes logits
+        self.linear = nn.Linear(3 * h * w, num_classes)
+
+        # raise NotImplementedError("LinearClassifier.__init__() is not implemented")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -55,8 +60,10 @@ class LinearClassifier(nn.Module):
         Returns:
             tensor (b, num_classes) logits
         """
-        raise NotImplementedError("LinearClassifier.forward() is not implemented")
 
+        x = self.flatten(x)
+        logits = self.linear(x)
+        return logits
 
 class MLPClassifier(nn.Module):
     def __init__(
