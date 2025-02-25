@@ -149,7 +149,7 @@ class MLPClassifierDeep(nn.Module):
         Returns:
             tensor (b, num_classes) logits
         """
-        eturn self.model(x)
+        return self.model(x)
 
 class MLPClassifierDeepResidual(nn.Module):
     def __init__(
