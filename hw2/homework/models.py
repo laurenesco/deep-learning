@@ -157,6 +157,8 @@ class MLPClassifierDeepResidual(nn.Module):
         h: int = 64,
         w: int = 64,
         num_classes: int = 6,
+        hidden_dim: int = 128,
+        num_layers: int = 3  # Number of residual blocks
     ):
         """
         Args:
@@ -170,8 +172,16 @@ class MLPClassifierDeepResidual(nn.Module):
         """
         super().__init__()
 
-        raise NotImplementedError("MLPClassifierDeepResidual.__init__() is not implemented")
-
+        # Flatten the input image
+        self.flatten = nn.Flatten()
+        # Initial layer: project input to hidden_dim
+        self.input_layer = nn.Linear(3 * h * w, hidden_dim)
+        self.relu = nn.ReLU()
+        # Create a ModuleList of residual blocks; each block is a linear layer
+        self.res_blocks = nn.ModuleList([nn.Linear(hidden_dim, hidden_dim) for _ in range(num_layers)])
+        # Final output layer: project from hidden_dim to num_classes
+        self.output_layer = nn.Linear(hidden_dim, num_classes)
+    
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
@@ -180,8 +190,17 @@ class MLPClassifierDeepResidual(nn.Module):
         Returns:
             tensor (b, num_classes) logits
         """
-        raise NotImplementedError("MLPClassifierDeepResidual.forward() is not implemented")
-
+        x = self.flatten(x)
+        x = self.input_layer(x)
+        x = self.relu(x)
+        # Apply each residual block:
+        for layer in self.res_blocks:
+            residual = x  # store input for residual connection
+            x = layer(x)
+            x = self.relu(x)
+            x = x + residual  # add skip connection
+        logits = self.output_layer(x)
+        return logits
 
 model_factory = {
     "linear": LinearClassifier,
