@@ -82,7 +82,7 @@ class MLPClassifier(nn.Module):
         """
         super().__init__()
 
-        hidden_dim = 256  # Adjustable
+        hidden_dim = 192  # Adjustable
         self.model = nn.Sequential(
             nn.Flatten(),  # Flatten (B, 3, H, W) to (B, 3 * H * W)
             nn.Linear(3 * h * w, hidden_dim),  # Hidden layer
