@@ -1,8 +1,8 @@
 .ipynb_checkpoints/
 
 # pytorch directory
-tutorials-in-pytorch/.ipynb_checkpoints/
-tutorials-in-pytorch/flowers/
+lectures/.ipynb_checkpoints/
+lectures/flowers/
 
 # homework 2 directory
 hw2/classification_data/
