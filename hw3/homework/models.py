@@ -26,9 +26,29 @@ class Classifier(nn.Module):
         self.register_buffer("input_mean", torch.as_tensor(INPUT_MEAN))
         self.register_buffer("input_std", torch.as_tensor(INPUT_STD))
 
-        # TODO: implement
-        pass
-
+        self.network = nn.Sequential(
+            nn.Conv2d(in_channels, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # 32x32
+        
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # 16x16
+        
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # 8x8
+        
+            nn.Flatten(),
+            nn.Linear(128 * 8 * 8, 256),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(256, num_classes)
+        )
+        
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
@@ -40,8 +60,7 @@ class Classifier(nn.Module):
         # optional: normalizes the input
         z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
 
-        # TODO: replace with actual forward pass
-        logits = torch.randn(x.size(0), 6)
+        logits = self.network(z)
 
         return logits
 
