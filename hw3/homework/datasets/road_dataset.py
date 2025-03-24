@@ -29,21 +29,28 @@ class RoadDataset(Dataset):
 
     def get_transform(self, transform_pipeline: str):
         xform = None
-
+    
+        base = [
+            road_transforms.ImageLoader(self.episode_path),
+            road_transforms.DepthLoader(self.episode_path),
+            road_transforms.TrackProcessor(self.track),
+        ]
+    
         if transform_pipeline == "default":
+            xform = road_transforms.Compose(base)
+    
+        elif transform_pipeline == "aug":
             xform = road_transforms.Compose(
                 [
-                    road_transforms.ImageLoader(self.episode_path),
-                    road_transforms.DepthLoader(self.episode_path),
-                    road_transforms.TrackProcessor(self.track),
+                    road_transforms.RandomApplyTo("image", T.ColorJitter(0.2, 0.2, 0.2, 0.1)),
+                    road_transforms.RandomApplyTo("image", T.RandomHorizontalFlip(p=0.5)),
+                    *base
                 ]
             )
-        elif transform_pipeline == "aug":
-            pass
-
+    
         if xform is None:
             raise ValueError(f"Invalid transform {transform_pipeline} specified!")
-
+    
         return xform
 
     def __len__(self):

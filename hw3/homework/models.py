@@ -109,7 +109,8 @@ class Detector(torch.nn.Module):
         
         # Upsampling blocks
         self.up1 = nn.Sequential(
-            nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1),
+            nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
+            nn.Conv2d(32, 16, kernel_size=3, padding=1),
             nn.ReLU(),
         )
         self.up2 = nn.Sequential(
@@ -144,7 +145,8 @@ class Detector(torch.nn.Module):
         d2 = self.down2(d1)  # (B, 32, 24, 32)
         
         u1 = self.up1(d2)  # (B, 16, 48, 64)
-        u2 = self.up2(u1 + d1)  # skip connection from down1 (B, 16, 96, 128)
+        u1 = u1 + d1
+        u2 = self.up2(u1)
         
         logits = self.segmentation_head(u2)         # (B, 3, 96, 128)
         depth = self.depth_head(u2).squeeze(1)      # (B, 96, 128)
