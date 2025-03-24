@@ -97,8 +97,32 @@ class Detector(torch.nn.Module):
         self.register_buffer("input_mean", torch.as_tensor(INPUT_MEAN))
         self.register_buffer("input_std", torch.as_tensor(INPUT_STD))
 
-        # TODO: implement
-        pass
+        # Downsampling blocks
+        self.down1 = nn.Sequential(
+            nn.Conv2d(in_channels, 16, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+        )
+        self.down2 = nn.Sequential(
+            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+        )
+        
+        # Upsampling blocks
+        self.up1 = nn.Sequential(
+            nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(),
+        )
+        self.up2 = nn.Sequential(
+            nn.ConvTranspose2d(16, 16, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(),
+        )
+        
+        # Output heads
+        self.segmentation_head = nn.Conv2d(16, num_classes, kernel_size=1)
+        self.depth_head = nn.Sequential(
+            nn.Conv2d(16, 1, kernel_size=1),
+            nn.Sigmoid()  # constrain output to [0, 1]
+        )
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -115,12 +139,17 @@ class Detector(torch.nn.Module):
         """
         # optional: normalizes the input
         z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
-
-        # TODO: replace with actual forward pass
-        logits = torch.randn(x.size(0), 3, x.size(2), x.size(3))
-        raw_depth = torch.rand(x.size(0), x.size(2), x.size(3))
-
-        return logits, raw_depth
+        
+        d1 = self.down1(z)  # (B, 16, 48, 64)
+        d2 = self.down2(d1)  # (B, 32, 24, 32)
+        
+        u1 = self.up1(d2)  # (B, 16, 48, 64)
+        u2 = self.up2(u1 + d1)  # skip connection from down1 (B, 16, 96, 128)
+        
+        logits = self.segmentation_head(u2)         # (B, 3, 96, 128)
+        depth = self.depth_head(u2).squeeze(1)      # (B, 96, 128)
+        
+        return logits, depth
 
     def predict(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
