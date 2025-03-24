@@ -28,26 +28,22 @@ class SuperTuxDataset(Dataset):
                     label_id = LABEL_NAMES.index(label)
 
                     self.data.append((img_path, label_id))
-
+                    
     def get_transform(self, transform_pipeline: str = "default"):
         xform = None
-
+    
         if transform_pipeline == "default":
             xform = transforms.ToTensor()
         elif transform_pipeline == "aug":
-            # construct your custom augmentation
-            xform = transforms.Compose(
-                [
-                    # TODO: fix
-                    # transforms.ColorJitter(0.9, 0.9, 0.9, 0.1),
-                    transforms.RandomHorizontalFlip(),
-                    transforms.ToTensor(),
-                ]
-            )
-
+            xform = transforms.Compose([
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomRotation(10),
+                transforms.ToTensor(),
+            ])
+    
         if xform is None:
             raise ValueError(f"Invalid transform {transform_pipeline} specified!")
-
+    
         return xform
 
     def __len__(self):
