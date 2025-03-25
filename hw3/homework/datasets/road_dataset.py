@@ -43,9 +43,9 @@ class RoadDataset(Dataset):
         elif transform_pipeline == "aug":
             xform = road_transforms.Compose(
                 [
+                    *base
                     road_transforms.RandomApplyTo("image", T.ColorJitter(0.2, 0.2, 0.2, 0.1)),
                     road_transforms.RandomApplyTo("image", T.RandomHorizontalFlip(p=0.5)),
-                    *base
                 ]
             )
     
