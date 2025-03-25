@@ -18,6 +18,19 @@ from torchvision import transforms as tv_transforms
 
 from .road_utils import Track, homogeneous
 
+import random
+from torchvision import transforms as T  # add this if not already present
+
+class RandomApplyTo:
+    def __init__(self, key, transform, p=0.5):
+        self.key = key
+        self.transform = transform
+        self.p = p
+
+    def __call__(self, sample: dict) -> dict:
+        if random.random() < self.p:
+            sample[self.key] = self.transform(sample[self.key])
+        return sample
 
 def project(points, view, proj, h, w):
     points_uv_raw = points @ view @ proj
