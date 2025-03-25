@@ -21,16 +21,16 @@ from .road_utils import Track, homogeneous
 import random
 from torchvision import transforms as T 
 
-class RandomApplyTo:
-    def __init__(self, key, transform, p=0.5):
-        self.key = key
-        self.transform = transform
+class NumpyRandomHorizontalFlip:
+    def __init__(self, p=0.5):
         self.p = p
 
-    def __call__(self, sample: dict) -> dict:
-        if random.random() < self.p:
-            sample[self.key] = self.transform(sample[self.key])
+    def __call__(self, sample):
+        if np.random.rand() < self.p:
+            sample["image"] = np.flip(sample["image"], axis=2)
+            sample["track"] = np.flip(sample["track"], axis=1)
         return sample
+
 
 def project(points, view, proj, h, w):
     points_uv_raw = points @ view @ proj

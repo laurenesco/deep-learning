@@ -41,13 +41,10 @@ class RoadDataset(Dataset):
             xform = road_transforms.Compose(base)
     
         elif transform_pipeline == "aug":
-            xform = road_transforms.Compose(
-                [
-                    *base,
-                    road_transforms.RandomApplyTo("image", T.ColorJitter(0.2, 0.2, 0.2, 0.1)),
-                    road_transforms.RandomApplyTo("image", T.RandomHorizontalFlip(p=0.5))
-                ]
-            )
+            xform = road_transforms.Compose([
+                *base,
+                NumpyRandomHorizontalFlip(p=0.5),  # <— your custom flip
+            ])
     
         if xform is None:
             raise ValueError(f"Invalid transform {transform_pipeline} specified!")
