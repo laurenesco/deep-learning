@@ -106,18 +106,29 @@ class Detector(torch.nn.Module):
             nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),
             nn.ReLU(),
         )
-        
-        # Upsampling blocks
+
+        self.down3 = nn.Sequential(
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+        )
+
+
+         # Upsampling blocks
         self.up1 = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
+            nn.Conv2d(64, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+        )
+        self.up2 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
             nn.Conv2d(32, 16, kernel_size=3, padding=1),
             nn.ReLU(),
         )
-        self.up2 = nn.Sequential(
+        self.up3 = nn.Sequential(
             nn.ConvTranspose2d(16, 16, kernel_size=4, stride=2, padding=1),
             nn.ReLU(),
         )
-        
+
         # Output heads
         self.segmentation_head = nn.Conv2d(16, num_classes, kernel_size=1)
         self.depth_head = nn.Sequential(
@@ -138,18 +149,24 @@ class Detector(torch.nn.Module):
                 - logits (b, num_classes, h, w)
                 - depth (b, h, w)
         """
+        
         # optional: normalizes the input
         z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
+
+        d1 = self.down1(z)       # (B, 16, 48, 64)
+        d2 = self.down2(d1)      # (B, 32, 24, 32)
+        d3 = self.down3(d2)      # (B, 64, 12, 16)
         
-        d1 = self.down1(z)  # (B, 16, 48, 64)
-        d2 = self.down2(d1)  # (B, 32, 24, 32)
+        u1 = self.up1(d3)        # (B, 32, 24, 32)
+        u1 = u1 + d2            # Skip connection from d2
         
-        u1 = self.up1(d2)  # (B, 16, 48, 64)
-        u1 = u1 + d1
-        u2 = self.up2(u1)
+        u2 = self.up2(u1)        # (B, 16, 48, 64)
+        u2 = u2 + d1            # Skip connection from d1
         
-        logits = self.segmentation_head(u2)         # (B, 3, 96, 128)
-        depth = self.depth_head(u2).squeeze(1)      # (B, 96, 128)
+        u3 = self.up3(u2)        # (B, 16, 96, 128)
+        
+        logits = self.segmentation_head(u3)
+        depth = self.depth_head(u3).squeeze(1)
         
         return logits, depth
 
