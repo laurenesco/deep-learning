@@ -19,7 +19,7 @@ from torchvision import transforms as tv_transforms
 from .road_utils import Track, homogeneous
 
 import random
-from torchvision import transforms as T  # add this if not already present
+from torchvision import transforms as T 
 
 class RandomApplyTo:
     def __init__(self, key, transform, p=0.5):
