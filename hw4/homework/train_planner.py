@@ -36,7 +36,7 @@ def run_epoch(model, dataloader, optimizer, loss_fn, train=True):
 
             if train:
                 loss.backward()
-                # clip_grad_norm_(model.parameters(), max_norm=1.0)
+                clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
 
             total_loss += loss.item()
