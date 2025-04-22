@@ -8,3 +8,8 @@ lectures/flowers/
 hw2/classification_data/
 hw2/grader/__pycache__/
 hw2/homework/__pycache__/
+
+# homework 4 directory
+hw4/grader/__pycache__/
+hw4/homework/__pycache__/
+hw4/drive_data/
