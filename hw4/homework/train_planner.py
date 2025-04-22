@@ -123,6 +123,9 @@ def train(
             if combined_error < best_val_loss:  # repurpose best_val_loss to track best error sum
                 best_val_loss = combined_error
                 save_model(model)
+            print(f"Saved new best model with combined error {combined_error:.4f} "
+                  f"(Lateral: {val_stats['lateral_error']:.4f}, "
+                  f"Longitudinal: {val_stats['longitudinal_error']:.4f})")
 
 
 if __name__ == "__main__":

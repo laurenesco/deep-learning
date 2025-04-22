@@ -63,13 +63,36 @@ class TransformerPlanner(nn.Module):
         n_track: int = 10,
         n_waypoints: int = 3,
         d_model: int = 64,
+        nhead: int = 4,
+        num_layers: int = 2,
+        dim_feedforward: int = 128,
     ):
         super().__init__()
 
         self.n_track = n_track
         self.n_waypoints = n_waypoints
+        self.d_model = d_model
 
+        self.input_proj = nn.Linear(2, d_model)
         self.query_embed = nn.Embedding(n_waypoints, d_model)
+
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=d_model,
+            nhead=nhead,
+            dim_feedforward=dim_feedforward,
+            batch_first=True,
+        )
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+        decoder_layer = nn.TransformerDecoderLayer(
+            d_model=d_model,
+            nhead=nhead,
+            dim_feedforward=dim_feedforward,
+            batch_first=True,
+        )
+        self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
+
+        self.output_proj = nn.Linear(d_model, 2)
 
     def forward(
         self,
@@ -90,8 +113,18 @@ class TransformerPlanner(nn.Module):
         Returns:
             torch.Tensor: future waypoints with shape (b, n_waypoints, 2)
         """
-        raise NotImplementedError
 
+        B = track_left.size(0)
+        # Concatenate left and right tracks: (B, 2 * n_track, 2)
+        src = torch.cat([track_left, track_right], dim=1)
+        src = self.input_proj(src)  # (B, 2 * n_track, d_model)
+        memory = self.encoder(src)  # (B, 2 * n_track, d_model)
+
+        # Query embeddings for the decoder
+        queries = self.query_embed.weight.unsqueeze(0).repeat(B, 1, 1)  # (B, n_waypoints, d_model)
+        tgt = self.decoder(queries, memory)  # (B, n_waypoints, d_model)
+
+        return self.output_proj(tgt)  # (B, n_waypoints, 2)
 
 class CNNPlanner(torch.nn.Module):
     def __init__(
