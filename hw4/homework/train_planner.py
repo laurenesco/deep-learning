@@ -6,13 +6,10 @@ Usage:
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
 
-from homework.models import MLPPlanner
-from homework.metrics import compute_lateral_error, compute_longitudinal_error
-from homework.datasets.road_dataset import RoadDataset
-from homework.datasets.road_transforms import EgoTrackProcessor
-from homework.supertux_utils import save_model  # update path if needed
+from homework.models import MODEL_FACTORY, save_model
+from homework.metrics import PlannerMetric
+from homework.datasets.road_dataset import load_data
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -24,78 +21,111 @@ def train(
     lr=1e-3,
     batch_size=64,
     num_epoch=20,
+    model_kwargs=None,
 ):
-    print(f"\n🛠️ Starting training: model={model_name}, lr={lr}, batch_size={batch_size}, epochs={num_epoch}")
+    if model_kwargs is None:
+        model_kwargs = {}
 
-    # === Data ===
-    transform = EgoTrackProcessor()  # update if you add more transforms later
-    train_ds = RoadDataset(split="train", transform=transform)
-    val_ds = RoadDataset(split="val", transform=transform)
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, num_workers=num_workers)
+    print(f"Starting training: model={model_name}, lr={lr}, batch_size={batch_size}, epochs={num_epoch}")
+
+    # === Load data ===
+    train_loader = load_data(
+        dataset_path="drive_data/train",
+        transform_pipeline=transform_pipeline,
+        return_dataloader=True,
+        num_workers=num_workers,
+        batch_size=batch_size,
+        shuffle=True,
+    )
+
+    val_loader = load_data(
+        dataset_path="drive_data/val",
+        transform_pipeline=transform_pipeline,
+        return_dataloader=True,
+        num_workers=num_workers,
+        batch_size=batch_size,
+        shuffle=False,
+    )
 
     # === Model ===
-    model = MLPPlanner().to(DEVICE)
+    model_class = MODEL_FACTORY[model_name]
+    model = model_class(**model_kwargs).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     loss_fn = nn.MSELoss()
+
+    if sum(p.numel() for p in model.parameters()) == 0:
+        raise ValueError(f"{model_name} has no trainable parameters")
 
     best_val_loss = float("inf")
 
     for epoch in range(num_epoch):
         model.train()
         total_loss = 0
+        train_metric = PlannerMetric()
+
         for batch in train_loader:
-            track_left = batch["track_left"].to(DEVICE)
-            track_right = batch["track_right"].to(DEVICE)
-            waypoints = batch["waypoints"].to(DEVICE)
-            mask = batch["waypoints_mask"].to(DEVICE).unsqueeze(-1)  # (B, 3, 1)
+            inputs = {k: v.to(DEVICE) for k, v in batch.items()}
 
             optimizer.zero_grad()
-            preds = model(track_left=track_left, track_right=track_right)
-            loss = loss_fn(preds[mask], waypoints[mask])
+
+            if "image" in inputs:
+                preds = model(image=inputs["image"])
+            else:
+                preds = model(track_left=inputs["track_left"], track_right=inputs["track_right"])
+
+            loss = loss_fn(preds[inputs["waypoints_mask"]], inputs["waypoints"][inputs["waypoints_mask"]])
             loss.backward()
             optimizer.step()
 
             total_loss += loss.item()
+            train_metric.add(preds, inputs["waypoints"], inputs["waypoints_mask"])
+
+        train_stats = train_metric.compute()
 
         # === Validation ===
         model.eval()
         val_loss = 0
-        total_lat_err = 0
-        total_long_err = 0
-        count = 0
+        val_metric = PlannerMetric()
 
         with torch.no_grad():
             for batch in val_loader:
-                track_left = batch["track_left"].to(DEVICE)
-                track_right = batch["track_right"].to(DEVICE)
-                waypoints = batch["waypoints"].to(DEVICE)
-                mask = batch["waypoints_mask"].to(DEVICE).unsqueeze(-1)
+                inputs = {k: v.to(DEVICE) for k, v in batch.items()}
 
-                preds = model(track_left=track_left, track_right=track_right)
-                loss = loss_fn(preds[mask], waypoints[mask])
+                if "image" in inputs:
+                    preds = model(image=inputs["image"])
+                else:
+                    preds = model(track_left=inputs["track_left"], track_right=inputs["track_right"])
+
+                loss = loss_fn(preds[inputs["waypoints_mask"]], inputs["waypoints"][inputs["waypoints_mask"]])
                 val_loss += loss.item()
 
-                total_lat_err += compute_lateral_error(preds, waypoints, mask).item()
-                total_long_err += compute_longitudinal_error(preds, waypoints, mask).item()
-                count += 1
+                val_metric.add(preds, inputs["waypoints"], inputs["waypoints_mask"])
 
+        val_stats = val_metric.compute()
         avg_train_loss = total_loss / len(train_loader)
-        avg_val_loss = val_loss / count
-        avg_lat_err = total_lat_err / count
-        avg_long_err = total_long_err / count
+        avg_val_loss = val_loss / len(val_loader)
 
         print(
-            f"📉 Epoch {epoch+1:02d} | "
+            f"Epoch {epoch+1:02d} | "
             f"Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | "
-            f"Lateral Err: {avg_lat_err:.4f} | Longitudinal Err: {avg_long_err:.4f} | "
+            f"Train Lateral: {train_stats['lateral_error']:.4f} | Train Longitudinal: {train_stats['longitudinal_error']:.4f} | "
+            f"Val Lateral: {val_stats['lateral_error']:.4f} | Val Longitudinal: {val_stats['longitudinal_error']:.4f} | "
             f"LR: {lr:.1e}"
         )
 
-        if avg_val_loss < best_val_loss:
-            best_val_loss = avg_val_loss
-            save_model(model, model_name)
-            print(f"💾 Saved new best model to '{model_name}.pt'")
+    # Track best combined error that meets grading threshold
+    if (
+        val_stats["lateral_error"] < 0.6
+        and val_stats["longitudinal_error"] < 0.2
+    ):
+        combined_error = val_stats["lateral_error"] + val_stats["longitudinal_error"]
+
+        if combined_error < best_val_loss:  # repurpose best_val_loss to track best error sum
+            best_val_loss = combined_error
+            save_model(model)
+            print(f"Saved model with lateral {val_stats['lateral_error']:.4f} and longitudinal {val_stats['longitudinal_error']:.4f}")
+
 
 if __name__ == "__main__":
     train()
+

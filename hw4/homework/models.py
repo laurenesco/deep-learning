@@ -32,7 +32,7 @@ class MLPPlanner(nn.Module):
             nn.ReLU(),
             nn.Linear(64, n_waypoints * 2), # Output (B, 6) → reshaped to (B, 3, 2)
         )
-    
+
     def forward(
         self,
         track_left: torch.Tensor,
@@ -52,7 +52,7 @@ class MLPPlanner(nn.Module):
         Returns:
             torch.Tensor: future waypoints with shape (b, n_waypoints, 2)
         """
-        
+
         x = torch.cat([track_left, track_right], dim=1)  # (B, 10, 2) → (B, 20, 2)
         out = self.mlp(x)                                # → (B, 6)
         return out.view(-1, self.n_waypoints, 2)         # → (B, 3, 2)
@@ -180,3 +180,4 @@ def calculate_model_size_mb(model: torch.nn.Module) -> float:
     Naive way to estimate model size
     """
     return sum(p.numel() for p in model.parameters()) * 4 / 1024 / 1024
+
