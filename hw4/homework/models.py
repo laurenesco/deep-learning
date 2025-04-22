@@ -64,7 +64,7 @@ class TransformerPlanner(nn.Module):
         n_waypoints: int = 3,
         d_model: int = 64,
         nhead: int = 4,
-        num_layers: int = 2,
+        num_layers: int = 2,              # <-- default = 2
         dim_feedforward: int = 128,
     ):
         super().__init__()
@@ -90,41 +90,20 @@ class TransformerPlanner(nn.Module):
             dim_feedforward=dim_feedforward,
             batch_first=True,
         )
-        self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
+        self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)  # <-- 2 layers here
 
         self.output_proj = nn.Linear(d_model, 2)
 
-    def forward(
-        self,
-        track_left: torch.Tensor,
-        track_right: torch.Tensor,
-        **kwargs,
-    ) -> torch.Tensor:
-        """
-        Predicts waypoints from the left and right boundaries of the track.
-
-        During test time, your model will be called with
-        model(track_left=..., track_right=...), so keep the function signature as is.
-
-        Args:
-            track_left (torch.Tensor): shape (b, n_track, 2)
-            track_right (torch.Tensor): shape (b, n_track, 2)
-
-        Returns:
-            torch.Tensor: future waypoints with shape (b, n_waypoints, 2)
-        """
-
+    def forward(self, track_left: torch.Tensor, track_right: torch.Tensor, **kwargs) -> torch.Tensor:
         B = track_left.size(0)
-        # Concatenate left and right tracks: (B, 2 * n_track, 2)
-        src = torch.cat([track_left, track_right], dim=1)
-        src = self.input_proj(src)  # (B, 2 * n_track, d_model)
-        memory = self.encoder(src)  # (B, 2 * n_track, d_model)
+        src = torch.cat([track_left, track_right], dim=1)  # (B, 2 * n_track, 2)
+        src = self.input_proj(src)                         # (B, 2 * n_track, d_model)
+        memory = self.encoder(src)                         # (B, 2 * n_track, d_model)
 
-        # Query embeddings for the decoder
         queries = self.query_embed.weight.unsqueeze(0).repeat(B, 1, 1)  # (B, n_waypoints, d_model)
-        tgt = self.decoder(queries, memory)  # (B, n_waypoints, d_model)
+        tgt = self.decoder(queries, memory)                            # (B, n_waypoints, d_model)
+        return self.output_proj(tgt)                                   # (B, n_waypoints, 2)
 
-        return self.output_proj(tgt)  # (B, n_waypoints, 2)
 
 class CNNPlanner(torch.nn.Module):
     def __init__(
