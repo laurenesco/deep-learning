@@ -113,16 +113,11 @@ def train(
             f"LR: {lr:.1e}"
         )
 
-        # Track best combined error that meets grading threshold
-        if (
-            val_stats["lateral_error"] < 0.6
-            and val_stats["longitudinal_error"] < 0.2
-        ):
-            combined_error = val_stats["lateral_error"] + val_stats["longitudinal_error"]
-
-            if combined_error < best_val_loss:  # repurpose best_val_loss to track best error sum
-                best_val_loss = combined_error
-                save_model(model)
+        # Always track best model based on combined error
+        combined_error = val_stats["lateral_error"] + val_stats["longitudinal_error"]
+        if combined_error < best_val_loss:
+            best_val_loss = combined_error
+            save_model(model)
             print(f"Saved new best model with combined error {combined_error:.4f} "
                   f"(Lateral: {val_stats['lateral_error']:.4f}, "
                   f"Longitudinal: {val_stats['longitudinal_error']:.4f})")

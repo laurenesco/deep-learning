@@ -138,6 +138,23 @@ class CNNPlanner(torch.nn.Module):
         self.register_buffer("input_mean", torch.as_tensor(INPUT_MEAN), persistent=False)
         self.register_buffer("input_std", torch.as_tensor(INPUT_STD), persistent=False)
 
+        self.cnn = nn.Sequential(
+            nn.Conv2d(3, 16, kernel_size=5, stride=2, padding=2),  # (B, 3, H, W) → (B, 16, H/2, W/2)
+            nn.ReLU(),
+            nn.Conv2d(16, 32, kernel_size=5, stride=2, padding=2), # → (B, 32, H/4, W/4)
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=5, stride=2, padding=2), # → (B, 64, H/8, W/8)
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1, 1)),                           # → (B, 64, 1, 1)
+            nn.Flatten(),                                          # → (B, 64)
+        )
+
+        self.mlp = nn.Sequential(
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, n_waypoints * 2),
+        )
+
     def forward(self, image: torch.Tensor, **kwargs) -> torch.Tensor:
         """
         Args:
@@ -146,10 +163,10 @@ class CNNPlanner(torch.nn.Module):
         Returns:
             torch.FloatTensor: future waypoints with shape (b, n, 2)
         """
-        x = image
-        x = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
-
-        raise NotImplementedError
+        x = (image - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
+        x = self.cnn(x)                  # (B, 64)
+        out = self.mlp(x)               # (B, 6)
+        return out.view(-1, self.n_waypoints, 2)  # (B, 3, 2)
 
 
 MODEL_FACTORY = {
