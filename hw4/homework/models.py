@@ -137,6 +137,36 @@ class CNNPlanner(torch.nn.Module):
             nn.Dropout(p=0.5),
             nn.Linear(64, n_waypoints * 2),
         )
+
+#        self.cnn = nn.Sequential(
+#            nn.Conv2d(3, 16, kernel_size=5, stride=2, padding=2),
+#            nn.BatchNorm2d(16),
+#            nn.ReLU(),
+#            # extra bottleneck block
+#            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
+#            nn.BatchNorm2d(32),
+#            nn.ReLU(),
+#            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
+#            nn.BatchNorm2d(64),
+#            nn.ReLU(),
+#            # expanded deeper layer
+#            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
+#            nn.BatchNorm2d(128),
+#            nn.ReLU(),
+#            nn.AdaptiveAvgPool2d((1, 1)),  # (B, 128, 1, 1)
+#            nn.Flatten(),                 # (B, 128)
+#        )
+
+#        self.mlp = nn.Sequential(
+#            nn.Linear(128, 128),
+#            nn.ReLU(),
+#            nn.Dropout(p=0.5),
+#            nn.Linear(128, 64),
+#            nn.ReLU(),
+#            nn.Dropout(p=0.3),
+#            nn.Linear(64, n_waypoints * 2),
+#        )
+
         # ── weight initialization ─────────────────────────────────────────
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
