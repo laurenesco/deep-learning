@@ -137,6 +137,12 @@ class CNNPlanner(torch.nn.Module):
             nn.Dropout(p=0.5),
             nn.Linear(64, n_waypoints * 2),
         )
+        # ── weight initialization ─────────────────────────────────────────
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
+            elif isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
 
     def forward(self, image: torch.Tensor, **kwargs) -> torch.Tensor:
         """

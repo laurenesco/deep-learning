@@ -74,7 +74,8 @@ def train_transformer(model, train_loader, val_loader, num_epoch, lr):
 
 def train_cnn(model, train_loader, val_loader, num_epoch, lr):
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epoch, eta_min=1e-6)
+    # scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
     # loss_fn = nn.MSELoss()
     loss_fn = nn.SmoothL1Loss()
     best_val_loss = float("inf")
@@ -83,7 +84,7 @@ def train_cnn(model, train_loader, val_loader, num_epoch, lr):
         train_loss, train_stats = run_epoch(model, train_loader, optimizer, loss_fn, train=True)
         val_loss, val_stats = run_epoch(model, val_loader, optimizer, loss_fn, train=False)
 
-        scheduler.step(val_loss)
+        scheduler.step()
 
         print(
             f"Epoch {epoch+1:02d} | "
